@@ -1,6 +1,16 @@
+require 'date'
 require 'json'
+require 'redis'
 
-brain = JSON.parse(File.open('./hubot-storage.json', 'r').read)
+redis = Redis.new
+json = redis.get('hubot:storage')
+
+File.open("hubot-storage-#{DateTime.now.strftime('%Y%jT%H%MZ')}.json", 'w') do |f|
+  f.write json
+  f.close
+end
+
+brain = JSON.parse(json)
 
 # Placeholder for new brain objects
 users = {}
@@ -15,14 +25,8 @@ brain['users'].each do |id, user|
   else
     merged['users'][user['name']] = merged['users'][user['name']].merge(user)
   end
+  # Set the ID field to match the screen name
+  merged['users'][user['name']]['id'] = user['name']
 end
 
-merged['users'].each do |id, user|
-  puts id
-  puts user.inspect
-end
-
-File.open('./hubot-storage-fixed.json', 'w') do |f|
-  f.puts merged.to_json
-  f.close
-end
+redis.set('hubot:storage', merged.to_json)
